@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Pulse - Ride Demand Forecast{% endblock %}
+{% block content %}
+
+{% set fv = form_values or {} %}
+{% set h = fv.get('hour', 8) | int %}
+{% set init_pos = h % 12 %}
+{% set init_ampm = 'PM' if h >= 12 else 'AM' %}
+
+<div class="grid">
+
+  <div class="card dial-wrap">
+    <h2>Pick your hour</h2>
+    <p class="card-sub">Spin the dial or drag the slider, then flip AM/PM. The soft
+      blue outline is a typical day's rhythm — it reshapes between AM and PM since
+      mornings and evenings behave differently.</p>
+
+    <div class="dial-body">
+      <svg id="dialSvg" width="220" height="220"></svg>
+      <div class="dial-readout" id="dialReadout">08<span>:00 AM</span></div>
+    </div>
+
+    <input type="range" id="hourSlider" class="hour-slider" min="0" max="11"
+           step="1" value="{{ init_pos }}">
+
+    <div class="pill-group ampm-group">
+      <input type="radio" name="ampm" id="ampmAM" value="AM" {{ 'checked' if init_ampm == 'AM' else '' }}>
+      <label for="ampmAM">AM</label>
+      <input type="radio" name="ampm" id="ampmPM" value="PM" {{ 'checked' if init_ampm == 'PM' else '' }}>
+      <label for="ampmPM">PM</label>
+    </div>
+
+    <p class="dial-caption">
+      <span class="swatch" style="background:#4CD8E6"></span>typical day
+      &nbsp;&nbsp;
+      <span class="swatch" style="background:#FFB020"></span>your pick
+    </p>
+  </div>
+
+  <div class="output-slot">
+    {% if prediction is not none %}
+    <div class="result reveal">
+      <div class="digits" id="digitsOut" data-target="{{ prediction }}">0</div>
+      <div class="meta">
+        <div class="label">Estimated ride requests</div>
+        <div class="timestamp">{{ target_dt }}</div>
+        <span class="tier {{ tier }}">{{ tier }}</span>
+      </div>
+    </div>
+    {% elif error %}
+    <div class="error reveal">
+      <span class="error-title">Hmm, something's off</span>
+      {{ error }}
+    </div>
+    {% else %}
+    <div class="placeholder">
+      <div class="placeholder-icon">◌</div>
+      <p>Your forecast will land here.<br>Fill in the conditions and hit
+        <strong>Get the forecast</strong>.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="card form-card">
+    <h2>Set the conditions</h2>
+    <p class="card-sub">Any date works — past, today, or years ahead — since this
+      model only reads weather and calendar signals, nothing else.</p>
+
+    <form method="POST" id="predictForm">
+      <input type="hidden" name="hour" id="hourField" value="{{ fv.get('hour', 8) }}">
+
+      <div class="field-row">
+        <div class="field">
+          <label for="date">Date</label>
+          <input type="date" name="date" id="date" value="{{ fv.get('date', '') }}" required>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Season</label>
+          <div class="pill-group">
+            {% for val, name in [('1','Winter'),('2','Spring'),('3','Summer'),('4','Fall')] %}
+            <input type="radio" name="season" id="season{{ val }}" value="{{ val }}"
+                   {{ 'checked' if fv.get('season', '3') == val else '' }}>
+            <label for="season{{ val }}">{{ name }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Weather</label>
+          <div class="pill-group">
+            {% for val, name in [('1','Clear'),('2','Mist/cloudy'),('3','Light rain/snow'),('4','Heavy rain/snow')] %}
+            <input type="radio" name="weather" id="weather{{ val }}" value="{{ val }}"
+                   {{ 'checked' if fv.get('weather', '1') == val else '' }}>
+            <label for="weather{{ val }}">{{ name }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Holiday</label>
+          <div class="pill-group">
+            {% for val, name in [('0','No'),('1','Yes')] %}
+            <input type="radio" name="holiday" id="holiday{{ val }}" value="{{ val }}"
+                   {{ 'checked' if fv.get('holiday', '0') == val else '' }}>
+            <label for="holiday{{ val }}">{{ name }}</label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="field">
+          <label>Working day</label>
+          <div class="pill-group">
+            {% for val, name in [('1','Yes'),('0','No')] %}
+            <input type="radio" name="workingday" id="workingday{{ val }}" value="{{ val }}"
+                   {{ 'checked' if fv.get('workingday', '1') == val else '' }}>
+            <label for="workingday{{ val }}">{{ name }}</label>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="temp">Temperature (°C)</label>
+          <input type="number" step="0.1" name="temp" id="temp" value="{{ fv.get('temp', 22) }}" required>
+        </div>
+        <div class="field">
+          <label for="atemp">Feels-like (°C)</label>
+          <input type="number" step="0.1" name="atemp" id="atemp" value="{{ fv.get('atemp', '') }}">
+          <div class="hint">Blank uses temperature</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="humidity">Humidity (%)</label>
+          <input type="number" step="1" name="humidity" id="humidity" value="{{ fv.get('humidity', 50) }}" required>
+        </div>
+        <div class="field">
+          <label for="windspeed">Wind speed</label>
+          <input type="number" step="0.1" name="windspeed" id="windspeed" value="{{ fv.get('windspeed', 10) }}" required>
+        </div>
+      </div>
+
+      <button type="submit" class="primary">Get the forecast</button>
+    </form>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='dial.js') }}"></script>
+<script>
+  initDial('dialSvg', 'hourSlider', 'dialReadout', 'ampm');
+
+  // Count up the predicted number instead of just snapping to it
+  const digitsOut = document.getElementById('digitsOut');
+  if (digitsOut) {
+    const target = parseInt(digitsOut.dataset.target, 10) || 0;
+    const duration = 700;
+    const start = performance.now();
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      digitsOut.textContent = Math.round(eased * target);
+      if (progress < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+</script>
+{% endblock %}
