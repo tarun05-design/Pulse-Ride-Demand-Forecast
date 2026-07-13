@@ -3,11 +3,13 @@
 // reshapes depending on AM/PM, since each clock position (e.g. 3 o'clock)
 // represents two different real hours (3 AM and 3 PM) with different demand.
 
-const TYPICAL_CURVE = [
+window.TYPICAL_CURVE = [
   0.12, 0.07, 0.04, 0.03, 0.04, 0.10, 0.28, 0.55,
   0.85, 0.55, 0.40, 0.42, 0.48, 0.45, 0.42, 0.48,
   0.65, 0.95, 0.80, 0.55, 0.40, 0.30, 0.22, 0.16
 ];
+const TYPICAL_CURVE = window.TYPICAL_CURVE;
+
 
 const CX = 120, CY = 120;
 const BASE_R = 52, RING_DEPTH = 34, TICK_R = 96, LABEL_R = 108;

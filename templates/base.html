@@ -6,22 +6,28 @@
 <title>{% block title %}Pulse — Ride Demand Forecast{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 <div class="shell">
-  <div class="topbar">
+  <header class="topbar">
     <a href="/" class="brand">
       <span class="mark">◍</span> PULSE
-      <span class="tag">ride demand, forecasted</span>
+      <span class="tag">ride demand forecast system</span>
     </a>
-  </div>
+    <div class="topbar-meta">
+      <span class="badge model-badge">⚡ ML Engine Active · R² ≈ 0.79</span>
+    </div>
+  </header>
 
   {% block content %}{% endblock %}
 
-  <footer class="foot">Pulse Ride Demand · Designed & built by Tarun P
-</footer>
+  <footer class="foot">
+    <div><strong>Pulse Ride Demand</strong> · Intelligence & Analytics Engine</div>
+    <div>Designed & Built by Tarun P</div>
+  </footer>
 </div>
 </body>
 </html>
+

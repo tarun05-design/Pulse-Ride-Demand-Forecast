@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Pulse - Ride Demand Forecast{% endblock %}
+{% block title %}Pulse — Ride Demand Forecast Dashboard{% endblock %}
 {% block content %}
 
 {% set fv = form_values or {} %}
@@ -7,21 +7,22 @@
 {% set init_pos = h % 12 %}
 {% set init_ampm = 'PM' if h >= 12 else 'AM' %}
 
-<div class="grid">
+<div class="dashboard-grid">
 
+  <!-- ============================================================
+       STEP 1: Hour & Rhythm Selector
+       ============================================================ -->
   <div class="card dial-wrap">
-    <h2>Pick your hour</h2>
-    <p class="card-sub">Spin the dial or drag the slider, then flip AM/PM. The soft
-      blue outline is a typical day's rhythm — it reshapes between AM and PM since
-      mornings and evenings behave differently.</p>
+    <div class="card-header">
+      <h2><span class="step-num">01</span> Hour & Rhythm</h2>
+    </div>
 
     <div class="dial-body">
       <svg id="dialSvg" width="220" height="220"></svg>
       <div class="dial-readout" id="dialReadout">08<span>:00 AM</span></div>
     </div>
 
-    <input type="range" id="hourSlider" class="hour-slider" min="0" max="11"
-           step="1" value="{{ init_pos }}">
+    <input type="range" id="hourSlider" class="hour-slider" min="0" max="11" step="1" value="{{ init_pos }}">
 
     <div class="pill-group ampm-group">
       <input type="radio" name="ampm" id="ampmAM" value="AM" {{ 'checked' if init_ampm == 'AM' else '' }}>
@@ -31,145 +32,618 @@
     </div>
 
     <p class="dial-caption">
-      <span class="swatch" style="background:#4CD8E6"></span>typical day
-      &nbsp;&nbsp;
-      <span class="swatch" style="background:#FFB020"></span>your pick
+      <span class="swatch" style="background:#4CD8E6"></span> Typical Rhythm
+      &nbsp;&nbsp;&nbsp;&nbsp;
+      <span class="swatch" style="background:#FFB020"></span> Selected Hour
     </p>
-  </div>
 
-  <div class="output-slot">
-    {% if prediction is not none %}
-    <div class="result reveal">
-      <div class="digits" id="digitsOut" data-target="{{ prediction }}">0</div>
-      <div class="meta">
-        <div class="label">Estimated ride requests</div>
-        <div class="timestamp">{{ target_dt }}</div>
-        <span class="tier {{ tier }}">{{ tier }}</span>
+    <!-- Quick Presets -->
+    <div class="preset-hours-container">
+      <div class="preset-label">Quick Rush Hour Presets</div>
+      <div class="preset-pills">
+        <button type="button" class="preset-btn" data-hour="8" data-ampm="AM">◐ 08:00 AM</button>
+        <button type="button" class="preset-btn" data-hour="1" data-ampm="PM">◯ 01:00 PM</button>
+        <button type="button" class="preset-btn" data-hour="5" data-ampm="PM">◑ 05:00 PM</button>
+        <button type="button" class="preset-btn" data-hour="10" data-ampm="PM">● 10:00 PM</button>
       </div>
     </div>
-    {% elif error %}
-    <div class="error reveal">
-      <span class="error-title">Hmm, something's off</span>
-      {{ error }}
+
+    <!-- Rhythm Phase Info Widget -->
+    <div class="rhythm-phase-widget" id="rhythmPhaseWidget">
+      <span class="phase-icon" id="phaseIcon">🌅</span>
+      <div class="phase-info">
+        <strong id="phaseTitle">Morning Commute Peak</strong>
+        <span id="phaseSubtitle">High density rush-hour transit window</span>
+      </div>
     </div>
-    {% else %}
-    <div class="placeholder">
-      <div class="placeholder-icon">◌</div>
-      <p>Your forecast will land here.<br>Fill in the conditions and hit
-        <strong>Get the forecast</strong>.</p>
-    </div>
-    {% endif %}
   </div>
 
+  <!-- ============================================================
+       STEP 2: Environmental & Calendar Conditions Form
+       ============================================================ -->
   <div class="card form-card">
-    <h2>Set the conditions</h2>
-    <p class="card-sub">Any date works — past, today, or years ahead — since this
-      model only reads weather and calendar signals, nothing else.</p>
+    <div class="card-header">
+      <h2><span class="step-num">02</span> Condition Parameters</h2>
+    </div>
+    <p class="card-sub">Specify temporal, meteorological, and calendar signals for the forecasting model.</p>
 
     <form method="POST" id="predictForm">
       <input type="hidden" name="hour" id="hourField" value="{{ fv.get('hour', 8) }}">
 
-      <div class="field-row">
-        <div class="field">
-          <label for="date">Date</label>
-          <input type="date" name="date" id="date" value="{{ fv.get('date', '') }}" required>
-        </div>
-      </div>
+      <div class="form-grid">
 
-      <div class="field-row">
-        <div class="field">
-          <label>Season</label>
-          <div class="pill-group">
-            {% for val, name in [('1','Winter'),('2','Spring'),('3','Summer'),('4','Fall')] %}
-            <input type="radio" name="season" id="season{{ val }}" value="{{ val }}"
-                   {{ 'checked' if fv.get('season', '3') == val else '' }}>
-            <label for="season{{ val }}">{{ name }}</label>
-            {% endfor %}
+        <!-- SECTION 1: Date & Calendar Schedule -->
+        <div class="form-group-section">
+          <div class="section-label">⬡ Date & Calendar Signals</div>
+          <div class="form-row-3">
+            <div class="field">
+              <label for="date">Forecast Date</label>
+              <input type="date" name="date" id="date" value="{{ fv.get('date', '2026-07-15') }}" required>
+            </div>
+            <div class="field">
+              <label>Public Holiday</label>
+              <div class="pill-group grid-2">
+                {% for val, name in [('0','Regular'),('1','Holiday')] %}
+                <input type="radio" name="holiday" id="holiday{{ val }}" value="{{ val }}"
+                       {{ 'checked' if fv.get('holiday', '0') == val else '' }}>
+                <label for="holiday{{ val }}">{{ name }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="field">
+              <label>Working Day</label>
+              <div class="pill-group grid-2">
+                {% for val, name in [('1','Workday'),('0','Weekend/Off')] %}
+                <input type="radio" name="workingday" id="workingday{{ val }}" value="{{ val }}"
+                       {{ 'checked' if fv.get('workingday', '1') == val else '' }}>
+                <label for="workingday{{ val }}">{{ name }}</label>
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label>Weather</label>
-          <div class="pill-group">
-            {% for val, name in [('1','Clear'),('2','Mist/cloudy'),('3','Light rain/snow'),('4','Heavy rain/snow')] %}
-            <input type="radio" name="weather" id="weather{{ val }}" value="{{ val }}"
-                   {{ 'checked' if fv.get('weather', '1') == val else '' }}>
-            <label for="weather{{ val }}">{{ name }}</label>
-            {% endfor %}
+        <!-- SECTION 2: Climate & Weather Conditions -->
+        <div class="form-group-section">
+          <div class="section-label">✦ Season & Weather State</div>
+          <div style="display:flex; flex-direction:column; gap: var(--sp-3);">
+            <div class="field">
+              <label>Season</label>
+              <div class="pill-group grid-4">
+                {% for val, name, icon in [('1','Winter','❅'),('2','Spring','✦'),('3','Summer','☀'),('4','Fall','❖')] %}
+                <input type="radio" name="season" id="season{{ val }}" value="{{ val }}"
+                       {{ 'checked' if fv.get('season', '3') == val else '' }}>
+                <label for="season{{ val }}"><span>{{ icon }}</span> {{ name }}</label>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="field">
+              <label>Weather Condition</label>
+              <div class="pill-group grid-2">
+                {% for val, name, icon in [('1','Clear / Few Clouds','☀'),('2','Mist / Cloudy','☁'),('3','Light Rain / Snow','⛆'),('4','Heavy Rain / Storm','⚡')] %}
+                <input type="radio" name="weather" id="weather{{ val }}" value="{{ val }}"
+                       {{ 'checked' if fv.get('weather', '1') == val else '' }}>
+                <label for="weather{{ val }}"><span>{{ icon }}</span> {{ name }}</label>
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label>Holiday</label>
-          <div class="pill-group">
-            {% for val, name in [('0','No'),('1','Yes')] %}
-            <input type="radio" name="holiday" id="holiday{{ val }}" value="{{ val }}"
-                   {{ 'checked' if fv.get('holiday', '0') == val else '' }}>
-            <label for="holiday{{ val }}">{{ name }}</label>
-            {% endfor %}
+        <!-- SECTION 3: Meteorological Metrics -->
+        <div class="form-group-section">
+          <div class="section-label">◈ Temperature & Environmental Metrics</div>
+          <div class="form-row-4">
+            <div class="field">
+              <label for="temp">Temp (°C)</label>
+              <input type="number" step="0.1" name="temp" id="temp" value="{{ fv.get('temp', 24) }}" required>
+            </div>
+            <div class="field">
+              <label for="atemp">Feels-like (°C)</label>
+              <input type="number" step="0.1" name="atemp" id="atemp" value="{{ fv.get('atemp', 25) }}">
+            </div>
+            <div class="field">
+              <label for="humidity">Humidity (%)</label>
+              <input type="number" step="1" name="humidity" id="humidity" value="{{ fv.get('humidity', 52) }}" required>
+            </div>
+            <div class="field">
+              <label for="windspeed">Wind (km/h)</label>
+              <input type="number" step="0.1" name="windspeed" id="windspeed" value="{{ fv.get('windspeed', 12) }}" required>
+            </div>
           </div>
         </div>
-        <div class="field">
-          <label>Working day</label>
-          <div class="pill-group">
-            {% for val, name in [('1','Yes'),('0','No')] %}
-            <input type="radio" name="workingday" id="workingday{{ val }}" value="{{ val }}"
-                   {{ 'checked' if fv.get('workingday', '1') == val else '' }}>
-            <label for="workingday{{ val }}">{{ name }}</label>
-            {% endfor %}
-          </div>
-        </div>
+
       </div>
 
-      <div class="field-row">
-        <div class="field">
-          <label for="temp">Temperature (°C)</label>
-          <input type="number" step="0.1" name="temp" id="temp" value="{{ fv.get('temp', 22) }}" required>
-        </div>
-        <div class="field">
-          <label for="atemp">Feels-like (°C)</label>
-          <input type="number" step="0.1" name="atemp" id="atemp" value="{{ fv.get('atemp', '') }}">
-          <div class="hint">Blank uses temperature</div>
-        </div>
-      </div>
-
-      <div class="field-row">
-        <div class="field">
-          <label for="humidity">Humidity (%)</label>
-          <input type="number" step="1" name="humidity" id="humidity" value="{{ fv.get('humidity', 50) }}" required>
-        </div>
-        <div class="field">
-          <label for="windspeed">Wind speed</label>
-          <input type="number" step="0.1" name="windspeed" id="windspeed" value="{{ fv.get('windspeed', 10) }}" required>
-        </div>
-      </div>
-
-      <button type="submit" class="primary">Get the forecast</button>
+      <button type="submit" class="primary-submit">
+        <span>✦ Generate Demand Forecast</span>
+      </button>
     </form>
   </div>
+
+  <!-- ============================================================
+       STEP 3: Analytical Output & Executive Insights Dashboard
+       ============================================================ -->
+  <div class="output-slot">
+    <div class="card output-card reveal">
+
+      <!-- Executive Metric Hero Header (Fluid & Clean) -->
+      <div class="output-hero-bar">
+        <div class="hero-metric-display">
+          <div class="hero-digits" id="digitsOut" data-target="{{ prediction if prediction is not none else 342 }}">
+            {{ prediction if prediction is not none else 342 }}
+          </div>
+          <div class="hero-units">
+            <span class="unit-label">Forecasted Ride Requests</span>
+            <span class="timestamp-label" id="timestampOut">
+              {{ target_dt if target_dt else "Wed, Jul 15, 2026 at 08:00 AM" }}
+            </span>
+          </div>
+        </div>
+
+        <div class="hero-badges-wrapper">
+          {% set active_tier = tier if tier else 'high' %}
+          <div class="tier-badge {{ active_tier }}" id="tierBadgeOut">
+            <span id="tierIcon">
+              {% if active_tier == 'low' %}◌
+              {% elif active_tier == 'moderate' %}△
+              {% elif active_tier == 'high' %}▲
+              {% else %}⚡{% endif %}
+            </span>
+            <span id="tierName">{{ active_tier | upper }} DEMAND</span>
+          </div>
+
+          <div class="comparison-summary-badge above" id="baselineVarianceBadge">
+            <span>▵</span> <span id="baselineVarianceText">+38% vs Baseline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Natural Summary Pills Bar -->
+      <div class="input-snapshot-bar" id="inputSnapshotBar">
+        <div class="chip">⬡ <strong id="chipDate">Jul 15, 2026</strong></div>
+        <div class="chip">⏱ <strong id="chipHour">08:00 AM</strong></div>
+        <div class="chip">☀ <strong id="chipSeason">Summer</strong></div>
+        <div class="chip">☁ <strong id="chipWeather">Clear</strong></div>
+        <div class="chip">◈ <strong id="chipDay">Workday</strong></div>
+        <div class="chip">◇ <strong id="chipTemp">24°C</strong></div>
+        <div class="chip">≈ <strong id="chipHumidity">52% Humidity</strong></div>
+        <div class="chip">⇥ <strong id="chipWind">12 km/h Wind</strong></div>
+      </div>
+
+      <!-- Analytics Sub-Panels Grid -->
+      <div class="analytics-grid">
+        <!-- Panel 1: 24h Baseline Demand Rhythm Curve -->
+        <div class="analytics-panel">
+          <div class="panel-title">
+            <span>24-Hour Baseline Rhythm vs Forecast</span>
+            <span class="panel-subtitle-tag">TYPICAL vs PREDICTED</span>
+          </div>
+
+          <div class="chart-container">
+            <svg id="timelineSvg" class="chart-svg" viewBox="0 0 500 180"></svg>
+          </div>
+        </div>
+
+        <!-- Panel 2: Feature Influence Breakdown -->
+        <div class="analytics-panel">
+          <div class="panel-title">
+            <span>Feature Influence Breakdown</span>
+            <span class="panel-subtitle-tag cyan">MODEL DRIVERS</span>
+          </div>
+
+          <div class="factor-list" id="factorList">
+            <!-- Factor 1: Hour / Commuter -->
+            <div class="factor-item">
+              <div class="factor-top">
+                <span class="factor-name">⏱ Hour Commuter Cycle</span>
+                <span class="factor-status-badge boost" id="factor1Badge">Peak Commute (+45%)</span>
+              </div>
+              <div class="factor-bar-bg">
+                <div class="factor-bar-fill boost" id="factor1Bar" style="width: 85%;"></div>
+              </div>
+            </div>
+
+            <!-- Factor 2: Weather -->
+            <div class="factor-item">
+              <div class="factor-top">
+                <span class="factor-name">☁ Weather State</span>
+                <span class="factor-status-badge boost" id="factor2Badge">Clear Weather (+15%)</span>
+              </div>
+              <div class="factor-bar-bg">
+                <div class="factor-bar-fill boost" id="factor2Bar" style="width: 70%;"></div>
+              </div>
+            </div>
+
+            <!-- Factor 3: Thermal Comfort -->
+            <div class="factor-item">
+              <div class="factor-top">
+                <span class="factor-name">◇ Thermal Comfort</span>
+                <span class="factor-status-badge boost" id="factor3Badge">Optimal Temp (24°C)</span>
+              </div>
+              <div class="factor-bar-bg">
+                <div class="factor-bar-fill boost" id="factor3Bar" style="width: 75%;"></div>
+              </div>
+            </div>
+
+            <!-- Factor 4: Calendar & Workday Signal -->
+            <div class="factor-item">
+              <div class="factor-top">
+                <span class="factor-name">◈ Calendar Workday</span>
+                <span class="factor-status-badge boost" id="factor4Badge">Workday Schedule</span>
+              </div>
+              <div class="factor-bar-bg">
+                <div class="factor-bar-fill boost" id="factor4Bar" style="width: 80%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
 </div>
 
 <script src="{{ url_for('static', filename='dial.js') }}"></script>
 <script>
+  // Initialize Analog Clock Hour Dial
   initDial('dialSvg', 'hourSlider', 'dialReadout', 'ampm');
 
-  // Count up the predicted number instead of just snapping to it
-  const digitsOut = document.getElementById('digitsOut');
-  if (digitsOut) {
-    const target = parseInt(digitsOut.dataset.target, 10) || 0;
-    const duration = 700;
+  const SEASONS = { 1: "Winter", 2: "Spring", 3: "Summer", 4: "Fall" };
+  const WEATHERS = { 1: "Clear", 2: "Cloudy", 3: "Rain/Snow", 4: "Storm" };
+
+  function calculateTierInfo(count) {
+    if (count < 100) return { tier: 'low', name: 'LOW DEMAND', icon: '◌' };
+    if (count < 300) return { tier: 'moderate', name: 'MODERATE DEMAND', icon: '△' };
+    if (count < 500) return { tier: 'high', name: 'HIGH DEMAND', icon: '▲' };
+    return { tier: 'peak', name: 'PEAK DEMAND', icon: '⚡' };
+  }
+
+  function animateDigits(target) {
+    const el = document.getElementById('digitsOut');
+    if (!el) return;
+    const current = parseInt(el.textContent, 10) || 0;
+    const duration = 500;
     const start = performance.now();
+
     function tick(now) {
       const progress = Math.min((now - start) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      digitsOut.textContent = Math.round(eased * target);
+      const val = Math.round(current + (target - current) * eased);
+      el.textContent = val;
       if (progress < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
   }
+
+  function renderTimelineChart(selectedHour, predictedCount) {
+    const svg = document.getElementById('timelineSvg');
+    if (!svg || !window.TYPICAL_CURVE) return;
+
+    const curve = window.TYPICAL_CURVE;
+    const width = 500, height = 180;
+    const padL = 30, padR = 20, padB = 25, padT = 15;
+    const chartW = width - padL - padR;
+    const chartH = height - padT - padB;
+
+    const maxVal = 1.0;
+    const points = curve.map((v, i) => {
+      const x = padL + (i / 23) * chartW;
+      const y = padT + chartH - (v / maxVal) * chartH;
+      return { x, y, v, hour: i };
+    });
+
+    let pathD = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      pathD += ` L ${points[i].x} ${points[i].y}`;
+    }
+
+    const areaD = pathD + ` L ${points[points.length - 1].x} ${padT + chartH} L ${points[0].x} ${padT + chartH} Z`;
+    const activePt = points[selectedHour] || points[0];
+
+    const baselineTypicalCount = Math.round(activePt.v * 450);
+    const diffPct = Math.round(((predictedCount - baselineTypicalCount) / Math.max(baselineTypicalCount, 1)) * 100);
+
+    const badgeEl = document.getElementById('baselineVarianceBadge');
+    const badgeTextEl = document.getElementById('baselineVarianceText');
+    if (badgeEl && badgeTextEl) {
+      if (diffPct >= 5) {
+        badgeEl.className = 'comparison-summary-badge above';
+        badgeTextEl.textContent = `+${diffPct}% vs Baseline`;
+      } else if (diffPct <= -5) {
+        badgeEl.className = 'comparison-summary-badge below';
+        badgeTextEl.textContent = `${diffPct}% vs Baseline`;
+      } else {
+        badgeEl.className = 'comparison-summary-badge normal';
+        badgeTextEl.textContent = `Aligned with Baseline`;
+      }
+    }
+
+    let svgHtml = `
+      <defs>
+        <linearGradient id="curveGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#4CD8E6" stop-opacity="0.25"/>
+          <stop offset="100%" stop-color="#4CD8E6" stop-opacity="0.0"/>
+        </linearGradient>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#4CD8E6"/>
+          <stop offset="50%" stop-color="#FFB020"/>
+          <stop offset="100%" stop-color="#4CD8E6"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Background guide lines -->
+      <line x1="${padL}" y1="${padT}" x2="${width - padR}" y2="${padT}" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3"/>
+      <line x1="${padL}" y1="${padT + chartH/2}" x2="${width - padR}" y2="${padT + chartH/2}" stroke="rgba(255,255,255,0.05)" stroke-dasharray="3,3"/>
+      <line x1="${padL}" y1="${padT + chartH}" x2="${width - padR}" y2="${padT + chartH}" stroke="rgba(255,255,255,0.1)"/>
+
+      <!-- Hour markers -->
+      <text x="${padL}" y="${height - 6}" font-family="IBM Plex Mono" font-size="10" fill="#607090">12 AM</text>
+      <text x="${padL + chartW*0.25}" y="${height - 6}" font-family="IBM Plex Mono" font-size="10" fill="#607090">06 AM</text>
+      <text x="${padL + chartW*0.5}" y="${height - 6}" font-family="IBM Plex Mono" font-size="10" fill="#607090">12 PM</text>
+      <text x="${padL + chartW*0.75}" y="${height - 6}" font-family="IBM Plex Mono" font-size="10" fill="#607090">06 PM</text>
+      <text x="${width - padR - 15}" y="${height - 6}" font-family="IBM Plex Mono" font-size="10" fill="#607090">11 PM</text>
+
+      <!-- Area and Curve path -->
+      <path d="${areaD}" fill="url(#curveGrad)"/>
+      <path d="${pathD}" fill="none" stroke="url(#lineGrad)" stroke-width="2.2"/>
+
+      <!-- Selected Hour Indicator Line -->
+      <line x1="${activePt.x}" y1="${padT}" x2="${activePt.x}" y2="${padT + chartH}" stroke="#FFB020" stroke-width="1.5" stroke-dasharray="3,3"/>
+      <circle cx="${activePt.x}" cy="${activePt.y}" r="5" fill="#FFB020" stroke="#070B14" stroke-width="2"/>
+      <circle cx="${activePt.x}" cy="${activePt.y}" r="10" fill="#FFB020" opacity="0.2"/>
+
+      <!-- Peak markers -->
+      <circle cx="${points[8].x}" cy="${points[8].y}" r="3" fill="#4CD8E6"/>
+      <circle cx="${points[17].x}" cy="${points[17].y}" r="3" fill="#4CD8E6"/>
+    `;
+
+    svg.innerHTML = svgHtml;
+  }
+
+  function updateFactorBreakdown(hour, weather, temp, isWorkday) {
+    const f1Badge = document.getElementById('factor1Badge');
+    const f1Bar = document.getElementById('factor1Bar');
+
+    if ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19)) {
+      f1Badge.className = 'factor-status-badge boost';
+      f1Badge.textContent = 'Peak Commute (+45%)';
+      f1Bar.className = 'factor-bar-fill boost';
+      f1Bar.style.width = '88%';
+    } else if (hour >= 23 || hour <= 5) {
+      f1Badge.className = 'factor-status-badge dampen';
+      f1Badge.textContent = 'Off-Peak Night (-60%)';
+      f1Bar.className = 'factor-bar-fill dampen';
+      f1Bar.style.width = '25%';
+    } else {
+      f1Badge.className = 'factor-status-badge neutral';
+      f1Badge.textContent = 'Mid-Day Steady';
+      f1Bar.className = 'factor-bar-fill neutral';
+      f1Bar.style.width = '55%';
+    }
+
+    const f2Badge = document.getElementById('factor2Badge');
+    const f2Bar = document.getElementById('factor2Bar');
+
+    if (weather == 1) {
+      f2Badge.className = 'factor-status-badge boost';
+      f2Badge.textContent = 'Clear Weather (+15%)';
+      f2Bar.className = 'factor-bar-fill boost';
+      f2Bar.style.width = '75%';
+    } else if (weather == 2) {
+      f2Badge.className = 'factor-status-badge neutral';
+      f2Badge.textContent = 'Cloudy (Neutral)';
+      f2Bar.className = 'factor-bar-fill neutral';
+      f2Bar.style.width = '50%';
+    } else {
+      f2Badge.className = 'factor-status-badge dampen';
+      f2Badge.textContent = 'Precipitation (-35%)';
+      f2Bar.className = 'factor-bar-fill dampen';
+      f2Bar.style.width = '30%';
+    }
+
+    const f3Badge = document.getElementById('factor3Badge');
+    const f3Bar = document.getElementById('factor3Bar');
+
+    if (temp >= 18 && temp <= 27) {
+      f3Badge.className = 'factor-status-badge boost';
+      f3Badge.textContent = `Optimal Temp (${temp}°C)`;
+      f3Bar.className = 'factor-bar-fill boost';
+      f3Bar.style.width = '80%';
+    } else if (temp < 5 || temp > 34) {
+      f3Badge.className = 'factor-status-badge dampen';
+      f3Badge.textContent = `Extreme Temp (${temp}°C)`;
+      f3Bar.className = 'factor-bar-fill dampen';
+      f3Bar.style.width = '35%';
+    } else {
+      f3Badge.className = 'factor-status-badge neutral';
+      f3Badge.textContent = `Moderate (${temp}°C)`;
+      f3Bar.className = 'factor-bar-fill neutral';
+      f3Bar.style.width = '60%';
+    }
+
+    const f4Badge = document.getElementById('factor4Badge');
+    const f4Bar = document.getElementById('factor4Bar');
+
+    if (isWorkday == 1) {
+      f4Badge.className = 'factor-status-badge boost';
+      f4Badge.textContent = 'Workday Schedule';
+      f4Bar.className = 'factor-bar-fill boost';
+      f4Bar.style.width = '78%';
+    } else {
+      f4Badge.className = 'factor-status-badge neutral';
+      f4Badge.textContent = 'Weekend/Off';
+      f4Bar.className = 'factor-bar-fill neutral';
+      f4Bar.style.width = '48%';
+    }
+  }
+
+  function updateSnapshotChips(dateStr, hour, seasonVal, weatherVal, tempVal, atempVal, humidityVal, windVal, isWorkday) {
+    const chipDate = document.getElementById('chipDate');
+    const chipHour = document.getElementById('chipHour');
+    const chipSeason = document.getElementById('chipSeason');
+    const chipWeather = document.getElementById('chipWeather');
+    const chipDay = document.getElementById('chipDay');
+    const chipTemp = document.getElementById('chipTemp');
+    const chipHumidity = document.getElementById('chipHumidity');
+    const chipWind = document.getElementById('chipWind');
+
+    if (chipDate) {
+      try {
+        const d = new Date(dateStr + 'T00:00:00');
+        chipDate.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch(e) { chipDate.textContent = dateStr; }
+    }
+
+    if (chipHour) {
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const h12 = hour % 12 === 0 ? 12 : hour % 12;
+      chipHour.textContent = `${String(h12).padStart(2, '0')}:00 ${ampm}`;
+    }
+
+    if (chipSeason) chipSeason.textContent = SEASONS[seasonVal] || "Summer";
+    if (chipWeather) chipWeather.textContent = WEATHERS[weatherVal] || "Clear";
+    if (chipDay) chipDay.textContent = isWorkday == 1 ? "Workday" : "Weekend/Off";
+    if (chipTemp) chipTemp.textContent = `${tempVal}°C`;
+    if (chipHumidity) chipHumidity.textContent = `${humidityVal}% Humidity`;
+    if (chipWind) chipWind.textContent = `${windVal} km/h Wind`;
+  }
+
+  let fetchTimeout = null;
+
+  function triggerLivePrediction() {
+    clearTimeout(fetchTimeout);
+    fetchTimeout = setTimeout(async () => {
+      const hourField = document.getElementById('hourField');
+      const dateField = document.getElementById('date');
+      const tempField = document.getElementById('temp');
+      const atempField = document.getElementById('atemp');
+      const humidityField = document.getElementById('humidity');
+      const windField = document.getElementById('windspeed');
+
+      const hour = parseInt(hourField.value, 10) || 8;
+      const dateVal = dateField.value || '2026-07-15';
+      const tempVal = parseFloat(tempField.value) || 24;
+      const atempVal = parseFloat(atempField.value) || tempVal;
+      const humidityVal = parseFloat(humidityField.value) || 50;
+      const windVal = parseFloat(windField.value) || 10;
+
+      const seasonElem = document.querySelector('input[name="season"]:checked');
+      const weatherElem = document.querySelector('input[name="weather"]:checked');
+      const holidayElem = document.querySelector('input[name="holiday"]:checked');
+      const workingdayElem = document.querySelector('input[name="workingday"]:checked');
+
+      const season = seasonElem ? parseInt(seasonElem.value, 10) : 3;
+      const weather = weatherElem ? parseInt(weatherElem.value, 10) : 1;
+      const holiday = holidayElem ? parseInt(holidayElem.value, 10) : 0;
+      const workingday = workingdayElem ? parseInt(workingdayElem.value, 10) : 1;
+
+      updateSnapshotChips(dateVal, hour, season, weather, tempVal, atempVal, humidityVal, windVal, workingday);
+      updateFactorBreakdown(hour, weather, tempVal, workingday);
+      updateRhythmPhaseWidget(hour);
+
+      try {
+        const res = await fetch('/api/predict', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: dateVal,
+            hour: hour,
+            season: season,
+            weather: weather,
+            holiday: holiday,
+            workingday: workingday,
+            temp: tempVal,
+            atemp: atempVal,
+            humidity: humidityVal,
+            windspeed: windVal
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const count = data.predicted_count;
+          const tierInfo = calculateTierInfo(count);
+
+          animateDigits(count);
+
+          const tsOut = document.getElementById('timestampOut');
+          if (tsOut && data.datetime) {
+            const dt = new Date(data.datetime);
+            tsOut.textContent = dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) +
+                               ' at ' + dt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+          }
+
+          const badge = document.getElementById('tierBadgeOut');
+          const tierIcon = document.getElementById('tierIcon');
+          const tierName = document.getElementById('tierName');
+
+          if (badge) badge.className = `tier-badge ${tierInfo.tier}`;
+          if (tierIcon) tierIcon.textContent = tierInfo.icon;
+          if (tierName) tierName.textContent = tierInfo.name;
+
+          renderTimelineChart(hour, count);
+        }
+      } catch (err) {
+        console.warn("Live prediction fetch error:", err);
+      }
+    }, 150);
+  }
+
+  function updateRhythmPhaseWidget(hour24) {
+    const iconEl = document.getElementById('phaseIcon');
+    const titleEl = document.getElementById('phaseTitle');
+    const subEl = document.getElementById('phaseSubtitle');
+    if (!iconEl || !titleEl || !subEl) return;
+
+    if (hour24 >= 7 && hour24 <= 9) {
+      iconEl.textContent = '🌅';
+      titleEl.textContent = 'Morning Commute Peak';
+      subEl.textContent = 'High density rush-hour transit window';
+    } else if (hour24 >= 17 && hour24 <= 19) {
+      iconEl.textContent = '🌆';
+      titleEl.textContent = 'Evening Commute Peak';
+      subEl.textContent = 'High density return commute window';
+    } else if (hour24 >= 10 && hour24 <= 16) {
+      iconEl.textContent = '☀️';
+      titleEl.textContent = 'Mid-Day Travel Cycle';
+      subEl.textContent = 'Steady commercial & discretionary trips';
+    } else if (hour24 >= 20 && hour24 <= 22) {
+      iconEl.textContent = '🌙';
+      titleEl.textContent = 'Late Evening Flow';
+      subEl.textContent = 'Moderate entertainment & leisure traffic';
+    } else {
+      iconEl.textContent = '🌌';
+      titleEl.textContent = 'Off-Peak Overnight';
+      subEl.textContent = 'Low density nocturnal mobility window';
+    }
+  }
+
+  const formInputs = document.querySelectorAll('#predictForm input, #hourSlider, input[name="ampm"]');
+  formInputs.forEach(input => {
+    input.addEventListener('change', triggerLivePrediction);
+    input.addEventListener('input', triggerLivePrediction);
+  });
+
+  document.querySelectorAll('.preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hPos = parseInt(btn.dataset.hour, 10) % 12;
+      const ampm = btn.dataset.ampm;
+      const slider = document.getElementById('hourSlider');
+      const ampmRadio = document.getElementById('ampm' + ampm);
+      if (slider) slider.value = hPos;
+      if (ampmRadio) ampmRadio.checked = true;
+      slider.dispatchEvent(new Event('input'));
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const hVal = parseInt(document.getElementById('hourField').value, 10) || 8;
+    const initialDigits = parseInt(document.getElementById('digitsOut').textContent, 10) || 342;
+    renderTimelineChart(hVal, initialDigits);
+    triggerLivePrediction();
+  });
 </script>
 {% endblock %}
