@@ -4,6 +4,8 @@
 
 Pulse is a Flask web app wrapped around a Random Forest model trained on real bike-share data. Pick an hour on an interactive clock face, set the weather, and get an instant estimate of ride demand — no live data feed, no history required.
 
+[![Live Demo](https://img.shields.io/badge/🚀%20Live%20Demo-pulse--ride--demand--forecast.onrender.com-46E3B7?style=for-the-badge&logo=render&logoColor=black)](https://pulse-ride-demand-forecast.onrender.com/)
+
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Flask](https://img.shields.io/badge/flask-web%20app-black)
 ![scikit--learn](https://img.shields.io/badge/model-random%20forest-orange)
@@ -21,8 +23,7 @@ Pulse is a Flask web app wrapped around a Random Forest model trained on real bi
 
 ## 📸 Preview
 
-> _Add a screenshot or GIF of the app here once deployed —_
-> `![Pulse screenshot](docs/screenshot.png)`
+![Pulse App Screenshot](docs/screenshot.png)
 
 ## 🧠 How it works
 
@@ -97,6 +98,7 @@ curl -X POST http://127.0.0.1:5000/api/predict \
 ## 🌐 Deployment
 
 Deployed on [Render](https://render.com)'s free tier:
+- **Live Application:** [pulse-ride-demand-forecast.onrender.com](https://pulse-ride-demand-forecast.onrender.com/)
 - **Build command:** `pip install -r requirements.txt`
 - **Start command:** `gunicorn app:app --bind 0.0.0.0:$PORT`
 
