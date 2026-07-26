@@ -108,6 +108,17 @@ Deployed on [Render](https://render.com)'s free tier:
 
 - Dataset: Fanaee-T, H. & Gama, J. (2013). *Event labeling combining ensemble detectors and background knowledge.* Progress in Artificial Intelligence, Springer. [UCI Bike Sharing Dataset](https://archive.ics.uci.edu/dataset/275/bike+sharing+dataset)
 
+---
+
+## 👤 Author & Connect
+
+**Tarun P** — Machine Learning & Full Stack Developer
+- 🌐 Portfolio: [tarun-ml.vercel.app](https://tarun-ml.vercel.app/)
+- 🐙 GitHub: [@tarun05-design](https://github.com/tarun05-design)
+- 📧 Email: [tarunparthasarathy65@gmail.com](mailto:tarunparthasarathy65@gmail.com)
+
+---
+
 ## 📄 License
 
 MIT — free to use, modify, and learn from.
